@@ -88,9 +88,6 @@ func SJFSchedule(w io.Writer, title string, processes []Process) {
 		return processes[i].BurstDuration < processes[j].BurstDuration
 	})
 
-	// Use the scheduling logic from FCFSSchedule as a base,
-	// since processes are now sorted by burst time,
-	// making it effectively an SJF scheduler.
 	var (
 		currentTime     int64
 		totalWait       float64
@@ -143,18 +140,15 @@ func max(a, b int64) int64 {
 func SJFPrioritySchedule(w io.Writer, title string, processes []Process) {
 	fmt.Fprintf(w, "------ %s ------\n", title)
 
-	// Initialize the metrics
 	var currentTime int64 = 0
 	var totalWait, totalTurnaround float64
 	var completed int = 0
 
-	// Pre-sort processes by arrival time to improve efficiency
 	sort.Slice(processes, func(i, j int) bool {
 		return processes[i].ArrivalTime < processes[j].ArrivalTime
 	})
 
 	for completed < len(processes) {
-		// Filter processes that have arrived by currentTime and are not completed
 		var available []int
 		for i, p := range processes {
 			if !p.Completed && p.ArrivalTime <= currentTime {
@@ -162,7 +156,6 @@ func SJFPrioritySchedule(w io.Writer, title string, processes []Process) {
 			}
 		}
 
-		// Sort available processes by burst duration, then by priority
 		sort.Slice(available, func(i, j int) bool {
 			if processes[available[i]].BurstDuration == processes[available[j]].BurstDuration {
 				return processes[available[i]].Priority < processes[available[j]].Priority
@@ -170,34 +163,27 @@ func SJFPrioritySchedule(w io.Writer, title string, processes []Process) {
 			return processes[available[i]].BurstDuration < processes[available[j]].BurstDuration
 		})
 
-		// No process is ready, increment currentTime
 		if len(available) == 0 {
 			currentTime++
 			continue
 		}
 
-		// Select the process to run
-		idx := available[0] // Index of the selected process in the original slice
+		idx := available[0]
 		p := &processes[idx]
 
-		// Calculate wait and turnaround times
 		waitTime := currentTime - p.ArrivalTime
 		turnaroundTime := waitTime + p.BurstDuration
 
-		// Update metrics
 		totalWait += float64(waitTime)
 		totalTurnaround += float64(turnaroundTime)
-		p.Completed = true // Mark the process as completed
+		p.Completed = true
 		completed++
 
-		// Move currentTime forward
 		currentTime += p.BurstDuration
 
-		// Logging for debug purposes, can be removed or commented out
 		fmt.Fprintf(w, "Process %s completed at %d, Wait: %d, Turnaround: %d\n", p.ProcessID, currentTime, waitTime, turnaroundTime)
 	}
 
-	// Calculate and print the final metrics
 	avgWait := totalWait / float64(len(processes))
 	avgTurnaround := totalTurnaround / float64(len(processes))
 	throughput := float64(len(processes)) / float64(currentTime)
